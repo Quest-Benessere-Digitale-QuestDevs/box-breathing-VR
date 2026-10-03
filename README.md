@@ -1,5 +1,3 @@
-# box-breathing-VR
-
 # Box Breathing VR
 
 Un esercizio guidato di respirazione che funziona **direttamente nel browser**: senza installare nulla, senza account, senza app. Su computer e telefono è una pagina; con un visore Meta Quest (no relations) diventa un'esperienza immersiva con una sfera luminosa che respira con te.
