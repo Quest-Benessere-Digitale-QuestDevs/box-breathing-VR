@@ -31,13 +31,13 @@ In entrambi i casi si tratta di **respirazione lenta** (sotto i 10 atti al minut
 
 **L'espirazione lunga conta.** Le pratiche contemplative che producono calma condividono due tratti: bassa frequenza respiratoria ed espirazioni prolungate, che stimolano il nervo vago (il modello "rVNS": *respiratory vagal nerve stimulation*) e spostano l'equilibrio autonomico verso la componente parasimpatica \[3\]. È per questo che CALMA 4-6 dedica più tempo all'espirazione che all'inspirazione. Non è un'opinione di design: in uno studio sperimentale randomizzato (114 partecipanti, 1 mese di pratica quotidiana), la respirazione ciclica con sospiri prolungati ha migliorato umore e ridotto l'attivazione fisiologica più della mindfulness e più del box breathing stesso \[4\].
 
-**Sul box breathing, onestà.** Il BOX 4-4-4-4 è la tecnica più conosciuta (la portiamo avanti fin dai corsi tattici e dai protocolli di gestione dello stress acuto), ma una revisione sistematica dei trial randomizzati specifici sul box breathing conclude che le evidenze dirette sono ancora **limitate** \[5\]. L'abbiamo incluso per tre motivi: la sua struttura a fasi identiche è la più semplice da seguire per chi inizia; rientra comunque nel dominio della respirazione lenta ben supportata \[1\]; e il confronto con CALMA 4-6 permette all'utente di sperimentare la differenza tra ritmo "quadrato" ed espirazione prolungata.
+**Sul box breathing** Il BOX 4-4-4-4 è la tecnica più conosciuta (la portiamo avanti fin dai corsi tattici e dai protocolli di gestione dello stress acuto), ma una revisione sistematica dei trial randomizzati specifici sul box breathing conclude che le evidenze dirette sono ancora **limitate** \[5\]. L'abbiamo incluso per tre motivi: la sua struttura a fasi identiche è la più semplice da seguire per chi inizia; rientra comunque nel dominio della respirazione lenta ben supportata \[1\]; e il confronto con CALMA 4-6 permette all'utente di sperimentare la differenza tra ritmo "quadrato" ed espirazione prolungata.
 
 ---
 
 ## Perché la realtà virtuale
 
-L'idea di fondo: **un ambiente immersivo occupa la finestra percettiva e scherma gli stimoli distraenti**. Chi respira davanti a uno schermo ha notifiche, icone e movimento attorno; nel visore la scena è l'unica cosa visibile, e l'attenzione si può posare su un solo oggetto — la sfera che respira.
+L'idea di fondo: **un ambiente immersivo occupa la finestra percettiva e scherma gli stimoli distraenti**. Chi respira davanti a uno schermo ha notifiche, icone e movimento attorno; nel visore la scena è l'unica cosa visibile, e l'attenzione si può posare su un solo oggetto: la sfera che respira.
 
 Non è un'intuizione nostra, è una delle ipotesi più replicate della letteratura VR:
 
@@ -55,7 +55,7 @@ Non è un'intuizione nostra, è una delle ipotesi più replicate della letteratu
 - **Un solo gesto per azione.** Grilletto per avviare/fermare, stretta per cambiare ritmo: niente menu, niente puntatori complessi. Ogni elemento interattivo dà feedback visivo e sonoro \[13\].
 - **Palette a bassa stimolazione.** Verde petrolio profondo e giallo caldo del marchio: colori coerenti con l'identità di Quest e con la logica degli ambienti rilassanti usati negli studi VR \[8\], senza pattern ad alto contrasto o movimento intenso, che le linee guida segnalano come fonti di disagio \[12\].
 - **Segnali sonori discreti ai cambi di fase.** Tre note distinte (ispirazione, espirazione, apnea) consentono di seguire l'esercizio senza fissare il testo — utile anche per chi ha difficoltà di lettura. Il ritmo è visivo *e* uditivo, in ridondanza.
-- **Zero telemetria.** Nessun cookie, nessun dato inviato, nessun salvataggio remoto: la privacy è una scelta di progettazione, non una dichiarazione. Serve solo la connessione per scaricare il font Anton da Google Fonts.
+- **Zero telemetria.** Nessun cookie, nessun dato inviato, nessun salvataggio remoto: la privacy è una scelta di progettazione. Serve solo la connessione per scaricare il font Anton da Google Fonts.
 
 ---
 
