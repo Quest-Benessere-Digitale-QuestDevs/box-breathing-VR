@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Box Breathing VR — Quest Benessere Digitale</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #a2b1c8;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  #gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  #overlay { position: fixed; inset: 0; display: flex; flex-direction: column;
+    justify-content: flex-start; align-items: center;
+    padding: max(24px, env(safe-area-inset-top)) 16px 16px;
+    pointer-events: none; user-select: none; }
+  #phaseLabel { text-align: center; letter-spacing: .3em; font-weight: 300;
+    color: #2b3652; text-transform: uppercase; line-height: 1.25;
+    text-shadow: 0 1px 12px rgba(255,255,255,.75); }
+  #phaseLabel .big { display: block; font-size: clamp(26px, 6vw, 58px); font-weight: 600; letter-spacing: .22em; margin: 0; }
+  #phaseLabel .sub { display: block; font-size: clamp(12px, 2.2vw, 15px); opacity: .8; margin: .55em 0 0; letter-spacing: .25em; }
+  #spacer { flex: 1; }
+  #controls { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
+    pointer-events: auto; padding-bottom: max(14px, env(safe-area-inset-bottom)); }
+  button { background: rgba(43,54,82,.85); color: #f4f7fd; border: 0; border-radius: 999px;
+    padding: 12px 22px; font-size: 15px; font-weight: 600; letter-spacing: .06em; cursor: pointer;
+    transition: transform .15s ease; box-shadow: 0 4px 18px rgba(43,54,82,.22); }
+  button:active { transform: scale(.96); }
+  button.secondary { background: rgba(43,54,82,.10); color: #2b3652; }
+  #vrBtn { display: none; background: #c98a3d; }
+  #vignette { position: fixed; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 60%, rgba(70,95,140,.18) 100%); }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div id="vignette"></div>
+<div id="overlay">
+  <div id="phaseLabel"><span class="big" id="phaseBig">PRONTO…</span>
+    <span class="sub" id="phaseSub">Premi START quando vuoi</span></div>
+  <div id="spacer"></div>
+  <div id="controls">
+    <button id="startBtn">START</button>
+    <button id="modeBtn" class="secondary">BOX 4-4-4-4</button>
+    <button id="fsBtn" class="secondary">SCHERMO INTERO ⛶</button>
+    <button id="vrBtn">ENTRA IN VR</button>
+  </div>
+</div>
+<script>
+(function () {
+"use strict";
+/* ============ stato respiro ============ */
+var MODES = {
+  box:  { label: "BOX 4-4-4-4",
+    phases: [ {name:"INSPIRA",   dur:4, from:0.9, to:1.5},
+              {name:"TRATTIENI", dur:4, from:1.5, to:1.5},
+              {name:"ESPIRA",    dur:4, from:1.5, to:0.9},
+              {name:"TRATTIENI", dur:4, from:0.9, to:0.9} ] },
+  calma:{ label: "CALMA 4-6",
+    phases: [ {name:"INSPIRA", dur:4, from:0.9, to:1.5},
+              {name:"ESPIRA",  dur:6, from:1.5, to:0.9} ] }
+};
+var mode = "box";
+var running = false;
+var phaseIdx = 0, phaseT0 = 0, cycles = 0;
+var scale = 0.9;
+/* palette rilassante: sfera giallo ocra più carico — inspirazione ambra, espirazione ocra tenue */
+var INHALE = [0.87, 0.58, 0.22], EXHALE = [0.74, 0.62, 0.34];
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+function sstep(t) { return t * t * (3 - 2 * t); }
+function mix3(a, b, t) { return [lerp(a[0],b[0],t), lerp(a[1],b[1],t), lerp(a[2],b[2],t)]; }
+
+/* ============ WebGL ============ */
+var canvas = document.getElementById("gl");
+var gl = canvas.getContext("webgl", { xrCompatible: true, antialias: true });
+if (!gl) { document.body.innerHTML = "<p style='color:#fff;padding:2em'>WebGL non disponibile.</p>"; return; }
+
+function sh(type, src) {
+  var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
+function prog(vs, fs) {
+  var p = gl.createProgram();
+  gl.attachShader(p, sh(gl.VERTEX_SHADER, vs));
+  gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  return p;
+}
+
+/* ---- shader ---- */
+var VS_SKY = "attribute vec3 p; varying vec3 v; void main(){ v = p; gl_Position = uMVP * vec4(p,1.0); }";
+var FS_SKY = "precision mediump float; varying vec3 v;" +
+  "void main(){ vec3 dir = normalize(v);" +
+  " vec3 low  = vec3(0.50, 0.60, 0.78);" + /* foschia sotto l'orizzonte */
+  " vec3 mid  = vec3(0.64, 0.72, 0.85);" + /* azzurro polvere all'orizzonte */
+  " vec3 top  = vec3(0.40, 0.52, 0.75);" + /* azzurro più carico in alto */
+  " float t = clamp(dir.y, -1.0, 1.0);" +
+  " vec3 c = t < 0.0 ? mix(low, mid, t + 1.0) : mix(mid, top, t);" +
+  " gl_FragColor = vec4(c, 1.0); }";
+
+var VS_GRID = "attribute vec3 p; varying vec3 wp; void main(){ wp = p; gl_Position = uMVP * vec4(p,1.0); }";
+var FS_GRID = "precision mediump float; varying vec3 wp;" +
+  "void main(){" +
+  " vec2 c = wp.xz / 4.0;" +
+  " vec2 g = abs(fract(c) - 0.5);" +
+  " float e = 0.5 - max(g.x, g.y);" +
+  " float line = 1.0 - smoothstep(0.0, 0.035, e);" +
+  " float dist = length(wp.xz) / 150.0;" +
+  " float fade = 1.0 - smoothstep(0.12, 0.95, dist);" +
+  " vec3 col = mix(vec3(0.40, 0.54, 0.76), vec3(0.56, 0.47, 0.72), clamp(dist * 1.4, 0.0, 1.0));" +
+  " float a = line * fade * 0.4;" + /* pastello visibile ma discreta */
+  " gl_FragColor = vec4(col, a); }";
+
+var VS_OBJ = "attribute vec3 p; attribute vec3 n; uniform mat4 uModel; uniform float uTime;" +
+  "varying vec3 wp; varying vec3 wn;" +
+  "void main(){" +
+  /* deformazione organica lenta: onde sovrapposte, ampiezza ~4.5% */
+  " float w = sin(p.x*2.1 + uTime*0.45) * sin(p.y*1.7 - uTime*0.33) * sin(p.z*2.3 + uTime*0.27);" +
+  " vec3 pd = p * (1.0 + w * 0.045);" +
+  " wp = (uModel * vec4(pd,1.0)).xyz;" +
+  " wn = mat3(uModel[0].xyz,uModel[1].xyz,uModel[2].xyz) * n;" +
+  " gl_Position = uMVP * vec4(pd,1.0); }";
+var FS_OBJ = "precision mediump float; varying vec3 wp; varying vec3 wn;" +
+  "uniform vec3 uColor; uniform vec3 uEye; uniform vec3 uLight; uniform float uAlpha;" +
+  "void main(){ vec3 N = normalize(wn); vec3 L = normalize(uLight);" +
+  " float lam = max(dot(N,L), 0.0);" +
+  " float soft = lam * 0.55 + (1.0 - abs(N.y)) * 0.25;" + /* luce avvolgente, no ombre dure */
+  " vec3 V = normalize(uEye - wp); float ndv = max(dot(N,V),0.0);" +
+  " float rim = pow(1.0 - ndv, 2.4);" +
+  " vec3 c = uColor * (0.45 + 0.55*soft);" +
+  " c += uColor * rim * 0.65 + vec3(0.08, 0.08, 0.13) * rim;" +
+  " float alpha = uAlpha * (0.55 + 0.45*rim);" +
+  " gl_FragColor = vec4(c, alpha); }";
+
+var VS_QUAD = "attribute vec3 p; attribute vec2 uv; varying vec2 vUv;" +
+  "void main(){ vUv = uv; gl_Position = uMVP * vec4(p,1.0); }";
+var FS_QUAD = "precision mediump float; varying vec2 vUv; uniform sampler2D uTex;" +
+  "void main(){ vec4 t = texture2D(uTex, vUv); gl_FragColor = t; }";
+
+/* mat4 (colonna-major, come WebGL) */
+function m4Mul(a, b) {
+  var o = new Float32Array(16);
+  for (var c = 0; c < 4; c++) for (var r = 0; r < 4; r++)
+    o[c*4+r] = a[r]*b[c*4] + a[4+r]*b[c*4+1] + a[8+r]*b[c*4+2] + a[12+r]*b[c*4+3];
+  return o;
+}
+function m4Persp(fov, aspect, n, f) {
+  var t = 1 / Math.tan(fov / 2), d = 1 / (n - f);
+  return new Float32Array([t/aspect,0,0,0, 0,t,0,0, 0,0,(n+f)*d,-1, 0,0,2*n*f*d,0]);
+}
+function m4LookAt(eye, tgt, up) {
+  var zx=eye[0]-tgt[0], zy=eye[1]-tgt[1], zz=eye[2]-tgt[2];
+  var zl=Math.hypot(zx,zy,zz); zx/=zl; zy/=zl; zz/=zl;
+  var xx=up[1]*zz-up[2]*zy, xy=up[2]*zx-up[0]*zz, xz=up[0]*zy-up[1]*zx;
+  var xl=Math.hypot(xx,xy,xz); xx/=xl; xy/=xl; xz/=xl;
+  var yx=zy*xz-zz*xy, yy=zz*xx-zx*xz, yz=zx*xy-zy*xx;
+  return new Float32Array([
+    xx,yx,zx,0, xy,yy,zy,0, xz,yz,zz,0,
+    -(xx*eye[0]+xy*eye[1]+xz*eye[2]),
+    -(yx*eye[0]+yy*eye[1]+yz*eye[2]),
+    -(zx*eye[0]+zy*eye[1]+zz*eye[2]), 1]);
+}
+function m4ModelS(pos, s) {
+  return new Float32Array([s,0,0,0, 0,s,0,0, 0,0,s,0, pos[0],pos[1],pos[2],1]);
+}
+function m4Billboard(pos, V, hw, hh) {
+  var rx=V[0], ry=V[4], rz=V[8], ux=V[1], uy=V[5], uz=V[9];
+  return new Float32Array([
+    rx*hw, ry*hw, rz*hw, 0,
+    ux*hh, uy*hh, uz*hh, 0,
+    V[2], V[6], V[10], 0,
+    pos[0], pos[1], pos[2], 1]);
+}
+
+/* geometrie */
+function sphereGeo(radius, wSeg, hSeg) {
+  var pos = [], idx = [];
+  for (var y = 0; y <= hSeg; y++) {
+    var v = y / hSeg, phi = v * Math.PI;
+    for (var x = 0; x <= wSeg; x++) {
+      var u = x / wSeg, th = u * Math.PI * 2;
+      var sx = Math.sin(phi) * Math.cos(th), sy = Math.cos(phi), sz = Math.sin(phi) * Math.sin(th);
+      pos.push(sx * radius, sy * radius, sz * radius);
+    }
+  }
+  for (y = 0; y < hSeg; y++) for (x = 0; x < wSeg; x++) {
+    var a = y * (wSeg + 1) + x, b = a + wSeg + 1;
+    idx.push(a, b, a + 1, b, b + 1, a + 1);
+  }
+  return { pos: new Float32Array(pos), idx: new Uint16Array(idx) };
+}
+var sphere = sphereGeo(1, 48, 28);
+var sky = sphereGeo(40, 24, 16);
+var quad = { pos: new Float32Array([-0.5,-0.5,0, 0.5,-0.5,0, 0.5,0.5,0, -0.5,0.5,0]),
+             uv: new Float32Array([0,1, 1,1, 1,0, 0,0]),
+             idx: new Uint16Array([0,1,2, 0,2,3]) };
+var gridGeo = { pos: new Float32Array([-200,0,-200, 200,0,-200, 200,0,200, -200,0,200]),
+                idx: new Uint16Array([0,1,2, 0,2,3]) };
+
+function buf(target, data) { var b = gl.createBuffer(); gl.bindBuffer(target, b); gl.bufferData(target, data, gl.STATIC_DRAW); return b; }
+var bSphere = { p: buf(gl.ARRAY_BUFFER, sphere.pos), i: buf(gl.ELEMENT_ARRAY_BUFFER, sphere.idx), n: sphere.idx.length };
+var bSky    = { p: buf(gl.ARRAY_BUFFER, sky.pos),    i: buf(gl.ELEMENT_ARRAY_BUFFER, sky.idx),    n: sky.idx.length };
+var bGrid   = { p: buf(gl.ARRAY_BUFFER, gridGeo.pos), i: buf(gl.ELEMENT_ARRAY_BUFFER, gridGeo.idx), n: gridGeo.idx.length };
+var bQuad   = { p: buf(gl.ARRAY_BUFFER, quad.pos),   u: buf(gl.ARRAY_BUFFER, quad.uv),
+                i: buf(gl.ELEMENT_ARRAY_BUFFER, quad.idx), n: quad.idx.length };
+
+/* programmi */
+var pSky = prog("uniform mat4 uMVP;" + VS_SKY, FS_SKY);
+var pGrid = prog("uniform mat4 uMVP;" + VS_GRID, FS_GRID);
+var pObj = prog("uniform mat4 uMVP;" + VS_OBJ, FS_OBJ);
+var pQuad = prog("uniform mat4 uMVP;" + VS_QUAD, FS_QUAD);
+var Lc = {
+  sky:  { mvp: gl.getUniformLocation(pSky, "uMVP"), p: gl.getAttribLocation(pSky, "p") },
+  grid: { mvp: gl.getUniformLocation(pGrid, "uMVP"),
+          p: gl.getAttribLocation(pGrid, "p") },
+  obj:  { mvp: gl.getUniformLocation(pObj, "uMVP"), model: gl.getUniformLocation(pObj, "uModel"),
+          color: gl.getUniformLocation(pObj, "uColor"), eye: gl.getUniformLocation(pObj, "uEye"),
+          light: gl.getUniformLocation(pObj, "uLight"), alpha: gl.getUniformLocation(pObj, "uAlpha"),
+          time: gl.getUniformLocation(pObj, "uTime"),
+          p: gl.getAttribLocation(pObj, "p"), n: gl.getAttribLocation(pObj, "n") },
+  quad: { mvp: gl.getUniformLocation(pQuad, "uMVP"), tex: gl.getUniformLocation(pQuad, "uTex"),
+          p: gl.getAttribLocation(pQuad, "p"), uv: gl.getAttribLocation(pQuad, "uv") }
+};
+
+/* texture testo (billboard: SOLO in VR) */
+var tCanvas = document.createElement("canvas"); tCanvas.width = 1024; tCanvas.height = 512;
+var tCtx = tCanvas.getContext("2d");
+var textTex = gl.createTexture();
+gl.bindTexture(gl.TEXTURE_2D, textTex);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+var lastText = "";
+function drawTextTexture(main, sub) {
+  var key = main + "|" + sub;
+  if (key === lastText) return; lastText = key;
+  tCtx.clearRect(0, 0, 1024, 512);
+  tCtx.textAlign = "center"; tCtx.fillStyle = "rgba(43,54,82,0.92)";
+  tCtx.font = "600 130px system-ui, sans-serif";
+  tCtx.fillText(main, 512, 220);
+  tCtx.font = "300 72px system-ui, sans-serif"; tCtx.fillStyle = "rgba(43,54,82,0.60)";
+  tCtx.fillText(sub, 512, 330);
+  gl.bindTexture(gl.TEXTURE_2D, textTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, tCanvas);
+}
+
+/* audio */
+var actx = null;
+function ping(freq) {
+  try {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    var o = actx.createOscillator(), g = actx.createGain();
+    o.type = "sine"; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.12, actx.currentTime + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + 0.7);
+    o.connect(g); g.connect(actx.destination);
+    o.start(); o.stop(actx.currentTime + 0.75);
+  } catch (e) {}
+}
+
+/* ============ ciclo respiro ============ */
+var big = document.getElementById("phaseBig"), sub = document.getElementById("phaseSub");
+function phase() { return MODES[mode].phases[phaseIdx]; }
+function step(now) {
+  var ph = phase();
+  var t = (now - phaseT0) / 1000;
+  if (t >= ph.dur) {
+    phaseT0 = now; phaseIdx++;
+    if (phaseIdx >= MODES[mode].phases.length) { phaseIdx = 0; cycles++; }
+    ph = phase();
+    ping(ph.name === "INSPIRA" ? 392 : (ph.name === "ESPIRA" ? 329.63 : 261.63));
+    t = 0;
+  }
+  var prog = Math.min(t / ph.dur, 1);
+  scale = lerp(ph.from, ph.to, sstep(prog));
+  var colMix;
+  if (ph.name === "INSPIRA") colMix = sstep(prog);
+  else if (ph.name === "ESPIRA") colMix = 1 - sstep(prog);
+  else colMix = (ph.to > 1.2) ? 1 : 0;
+  var color = mix3(EXHALE, INHALE, colMix);
+  var remain = Math.ceil(ph.dur - t);
+  var subTxt = remain + (cycles > 0 ? "  ·  ciclo " + cycles : "");
+  big.textContent = ph.name; sub.textContent = subTxt;
+  drawTextTexture(ph.name, subTxt);
+  return color;
+}
+
+/* ============ rendering ============ */
+var SPHERE_POS = [0, 1.4, 0], BILL_POS = [0, 2.7, 0];
+var curColor = [0.87, 0.58, 0.22];
+function renderView(P, V, eye, inXR) {
+  var nowS = performance.now() * 0.001;
+  /* cielo */
+  gl.useProgram(pSky);
+  gl.uniformMatrix4fv(Lc.sky.mvp, false, m4Mul(P, m4Mul(V, m4ModelS([0, 1.4, 0], 1))));
+  gl.bindBuffer(gl.ARRAY_BUFFER, bSky.p);
+  gl.enableVertexAttribArray(Lc.sky.p);
+  gl.vertexAttribPointer(Lc.sky.p, 3, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, bSky.i);
+  gl.depthMask(false); gl.disable(gl.CULL_FACE);
+  gl.drawElements(gl.TRIANGLES, bSky.n, gl.UNSIGNED_SHORT, 0);
+  gl.depthMask(true);
+  /* griglia outrun (additiva) */
+  gl.useProgram(pGrid);
+  gl.uniformMatrix4fv(Lc.grid.mvp, false, m4Mul(P, m4Mul(V, m4ModelS([0,0,0], 1))));
+  gl.bindBuffer(gl.ARRAY_BUFFER, bGrid.p);
+  gl.enableVertexAttribArray(Lc.grid.p);
+  gl.vertexAttribPointer(Lc.grid.p, 3, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, bGrid.i);
+  gl.disable(gl.CULL_FACE);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  gl.depthMask(false);
+  gl.drawElements(gl.TRIANGLES, bGrid.n, gl.UNSIGNED_SHORT, 0);
+  gl.depthMask(true);
+  gl.disable(gl.BLEND);
+  /* sfera (trasparente, ondeggia sul posto) */
+  gl.useProgram(pObj);
+  var sphPos = [0, 1.4 + Math.sin(nowS * 0.6) * 0.035, 0];
+  var M = m4ModelS(sphPos, scale);
+  gl.uniformMatrix4fv(Lc.obj.mvp, false, m4Mul(P, m4Mul(V, M)));
+  gl.uniformMatrix4fv(Lc.obj.model, false, M);
+  gl.uniform3fv(Lc.obj.color, curColor);
+  gl.uniform3fv(Lc.obj.eye, eye);
+  gl.uniform3f(Lc.obj.light, 0.35, 0.75, 0.45);
+  gl.uniform1f(Lc.obj.alpha, 0.85);
+  gl.uniform1f(Lc.obj.time, nowS);
+  gl.bindBuffer(gl.ARRAY_BUFFER, bSphere.p);
+  gl.enableVertexAttribArray(Lc.obj.p);
+  gl.vertexAttribPointer(Lc.obj.p, 3, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(Lc.obj.n);
+  gl.vertexAttribPointer(Lc.obj.n, 3, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, bSphere.i);
+  gl.enable(gl.CULL_FACE); gl.cullFace(gl.BACK);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  gl.drawElements(gl.TRIANGLES, bSphere.n, gl.UNSIGNED_SHORT, 0);
+  gl.disable(gl.BLEND);
+  /* billboard testo — SOLO in VR (in flat usa il DOM) */
+  if (inXR) {
+    gl.useProgram(pQuad);
+    gl.uniformMatrix4fv(Lc.quad.mvp, false, m4Mul(P, m4Mul(V, m4Billboard(BILL_POS, V, 1.15, 0.5))));
+    gl.uniform1i(Lc.quad.tex, 0);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, textTex);
+    gl.bindBuffer(gl.ARRAY_BUFFER, bQuad.p);
+    gl.enableVertexAttribArray(Lc.quad.p);
+    gl.vertexAttribPointer(Lc.quad.p, 3, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, bQuad.u);
+    gl.enableVertexAttribArray(Lc.quad.uv);
+    gl.vertexAttribPointer(Lc.quad.uv, 2, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, bQuad.i);
+    gl.disable(gl.CULL_FACE);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.drawElements(gl.TRIANGLES, bQuad.n, gl.UNSIGNED_SHORT, 0);
+    gl.disable(gl.BLEND);
+  }
+}
+
+/* flat loop */
+function resize() {
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.floor(canvas.clientWidth * dpr);
+  canvas.height = Math.floor(canvas.clientHeight * dpr);
+}
+window.addEventListener("resize", resize); resize();
+drawTextTexture("PRONTO…", "Premi START");
+
+function flatFrame(now) {
+  if (xrSession) return;
+  requestAnimationFrame(flatFrame);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.clearColor(0.64, 0.72, 0.85, 1);
+  gl.enable(gl.DEPTH_TEST);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  if (running) curColor = step(now);
+  var P = m4Persp(Math.PI / 3, canvas.width / canvas.height, 0.1, 200);
+  var V = m4LookAt([0, 1.5, 3.4], [0, 1.5, 0], [0, 1, 0]);
+  renderView(P, V, [0, 1.5, 3.4], false);
+}
+requestAnimationFrame(flatFrame);
+
+/* ============ WebXR ============ */
+var xrSession = null, xrRefSpace = null;
+var vrBtn = document.getElementById("vrBtn");
+if (navigator.xr && navigator.xr.isSessionSupported) {
+  navigator.xr.isSessionSupported("immersive-vr").then(function (ok) {
+    /* nota: display:"" NON basta: il CSS nasconde #vrBtn di default,
+       quindi serve un valore esplicito (bugfix v1.1) */
+    if (ok) vrBtn.style.display = "inline-block";
+  }).catch(function () {});
+}
+function xrFrame(time, frame) {
+  if (!xrSession) return;
+  xrSession.requestAnimationFrame(xrFrame);
+  var pose = frame.getViewerPose(xrRefSpace);
+  if (!pose) return;
+  var layer = xrSession.renderState.baseLayer;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);
+  gl.clearColor(0.64, 0.72, 0.85, 1);
+  gl.enable(gl.DEPTH_TEST);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  if (running) curColor = step(time);
+  for (var i = 0; i < pose.views.length; i++) {
+    var v = pose.views[i];
+    var vp = layer.getViewport(v);
+    gl.viewport(vp.x, vp.y, vp.width, vp.height);
+    renderView(v.projectionMatrix, v.transform.inverse.matrix,
+      [v.transform.position.x, v.transform.position.y, v.transform.position.z], true);
+  }
+}
+vrBtn.addEventListener("click", function () {
+  navigator.xr.requestSession("immersive-vr", { optionalFeatures: ["local-floor"] }).then(function (s) {
+    xrSession = s;
+    s.updateRenderState({ baseLayer: new XRWebGLLayer(s, gl) });
+    s.requestReferenceSpace("local-floor").then(function (rs) {
+      xrRefSpace = rs;
+      /* posizionamento: un frame iniziale per leggere l'orientamento dell'utente,
+         poi il mondo viene spostato così che la sfera si trovi a ~2.2 m davanti a lui
+         (bugfix v1.2: prima l'utente spuntava dentro la sfera) */
+      s.requestAnimationFrame(function (time, frame) {
+        var pose = frame.getViewerPose(xrRefSpace);
+        if (pose && pose.views.length && typeof XRRigidTransform !== "undefined") {
+          var m = pose.views[0].transform.matrix;
+          var fx = -m[8], fz = -m[10];              /* direzione di sguardo (piano orizzontale) */
+          var len = Math.hypot(fx, fz) || 1; fx /= len; fz /= len;
+          var dist = 2.2;
+          var T = new XRRigidTransform(
+            { x: fx * dist, y: 0, z: fz * dist },   /* nuova origine: davanti all'utente */
+            { x: 0, y: 0, z: 0, w: 1 });
+          xrRefSpace = xrRefSpace.getOffsetReferenceSpace(T);
+        }
+        s.requestAnimationFrame(xrFrame);
+      });
+    });
+    s.addEventListener("end", function () { xrSession = null; requestAnimationFrame(flatFrame); });
+  }).catch(function () { alert("WebXR non disponibile su questo dispositivo."); });
+});
+
+/* ============ UI ============ */
+var startBtn = document.getElementById("startBtn");
+startBtn.addEventListener("click", function () {
+  running = !running;
+  startBtn.textContent = running ? "PAUSA" : "RIPRENDI";
+  if (running) { phaseIdx = 0; cycles = 0; phaseT0 = performance.now(); ping(392); }
+  else { big.textContent = "PAUSA"; sub.textContent = "Riprendi quando vuoi"; }
+});
+var modeBtn = document.getElementById("modeBtn");
+modeBtn.addEventListener("click", function () {
+  mode = (mode === "box") ? "calma" : "box";
+  modeBtn.textContent = MODES[mode].label;
+  phaseIdx = 0; phaseT0 = performance.now();
+});
+var fsBtn = document.getElementById("fsBtn");
+fsBtn.addEventListener("click", function () {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen().catch(function () {});
+});
+})();
+</script>
+</body>
+</html>
