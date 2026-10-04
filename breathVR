@@ -4,10 +4,13 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Box Breathing VR — Quest Benessere Digitale</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet" />
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #a2b1c8;
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #2b4d59;
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
   #gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
   #overlay { position: fixed; inset: 0; display: flex; flex-direction: column;
@@ -15,28 +18,32 @@
     padding: max(24px, env(safe-area-inset-top)) 16px 16px;
     pointer-events: none; user-select: none; }
   #phaseLabel { text-align: center; letter-spacing: .3em; font-weight: 300;
-    color: #2b3652; text-transform: uppercase; line-height: 1.25;
-    text-shadow: 0 1px 12px rgba(255,255,255,.75); }
-  #phaseLabel .big { display: block; font-size: clamp(26px, 6vw, 58px); font-weight: 600; letter-spacing: .22em; margin: 0; }
-  #phaseLabel .sub { display: block; font-size: clamp(12px, 2.2vw, 15px); opacity: .8; margin: .55em 0 0; letter-spacing: .25em; }
+    color: #f2f5ec; text-transform: uppercase; line-height: 1.25;
+    text-shadow: 0 2px 14px rgba(0, 45, 55, .55); }
+  #phaseLabel .big { display: block; font-size: clamp(34px, 8vw, 84px);
+    font-family: "Anton", system-ui, sans-serif; font-weight: 400; letter-spacing: .14em; margin: 0; }
+  #phaseLabel .sub { display: block; font-size: clamp(16px, 3vw, 22px); opacity: .8;
+    margin: .55em 0 0; letter-spacing: .22em;
+    font-family: "Anton", system-ui, sans-serif; font-weight: 400; }
   #spacer { flex: 1; }
   #controls { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
     pointer-events: auto; padding-bottom: max(14px, env(safe-area-inset-bottom)); }
-  button { background: rgba(43,54,82,.85); color: #f4f7fd; border: 0; border-radius: 999px;
-    padding: 12px 22px; font-size: 15px; font-weight: 600; letter-spacing: .06em; cursor: pointer;
-    transition: transform .15s ease; box-shadow: 0 4px 18px rgba(43,54,82,.22); }
+  button { background: rgba(242,245,236,.92); color: #16414e; border: 0; border-radius: 999px;
+    padding: 12px 22px; font-size: 17px; font-weight: 400; letter-spacing: .08em; cursor: pointer;
+    font-family: "Anton", system-ui, sans-serif;
+    transition: transform .15s ease; box-shadow: 0 4px 18px rgba(0,30,40,.35); }
   button:active { transform: scale(.96); }
-  button.secondary { background: rgba(43,54,82,.10); color: #2b3652; }
-  #vrBtn { display: none; background: #c98a3d; }
+  button.secondary { background: rgba(242,245,236,.16); color: #f2f5ec; }
+  #vrBtn { display: none; background: #ffd700; color: #16414e; }
   #vignette { position: fixed; inset: 0; pointer-events: none;
-    background: radial-gradient(ellipse at center, transparent 60%, rgba(70,95,140,.18) 100%); }
+    background: radial-gradient(ellipse at center, transparent 62%, rgba(0,40,52,.28) 100%); }
 </style>
 </head>
 <body>
 <canvas id="gl"></canvas>
 <div id="vignette"></div>
 <div id="overlay">
-  <div id="phaseLabel"><span class="big" id="phaseBig">PRONTO…</span>
+  <div id="phaseLabel"><span class="big" id="phaseBig">PRONTO?</span>
     <span class="sub" id="phaseSub">Premi START quando vuoi</span></div>
   <div id="spacer"></div>
   <div id="controls">
@@ -64,8 +71,8 @@ var mode = "box";
 var running = false;
 var phaseIdx = 0, phaseT0 = 0, cycles = 0;
 var scale = 0.9;
-/* palette rilassante: sfera giallo ocra più carico — inspirazione ambra, espirazione ocra tenue */
-var INHALE = [0.87, 0.58, 0.22], EXHALE = [0.74, 0.62, 0.34];
+/* palette brand QBD: giallo brillante (logo #FFD700 pieno) su verde petrolio */
+var INHALE = [1.00, 0.84, 0.12], EXHALE = [0.88, 0.72, 0.24];
 
 function lerp(a, b, t) { return a + (b - a) * t; }
 function sstep(t) { return t * t * (3 - 2 * t); }
@@ -94,9 +101,9 @@ function prog(vs, fs) {
 var VS_SKY = "attribute vec3 p; varying vec3 v; void main(){ v = p; gl_Position = uMVP * vec4(p,1.0); }";
 var FS_SKY = "precision mediump float; varying vec3 v;" +
   "void main(){ vec3 dir = normalize(v);" +
-  " vec3 low  = vec3(0.50, 0.60, 0.78);" + /* foschia sotto l'orizzonte */
-  " vec3 mid  = vec3(0.64, 0.72, 0.85);" + /* azzurro polvere all'orizzonte */
-  " vec3 top  = vec3(0.40, 0.52, 0.75);" + /* azzurro più carico in alto */
+  " vec3 low  = vec3(0.27, 0.50, 0.58);" + /* foschia sotto l'orizzonte */
+  " vec3 mid  = vec3(0.33, 0.56, 0.63);" + /* petrolio schiarito all'orizzonte */
+  " vec3 top  = vec3(0.17, 0.43, 0.51);" + /* petrolio in alto */
   " float t = clamp(dir.y, -1.0, 1.0);" +
   " vec3 c = t < 0.0 ? mix(low, mid, t + 1.0) : mix(mid, top, t);" +
   " gl_FragColor = vec4(c, 1.0); }";
@@ -110,8 +117,8 @@ var FS_GRID = "precision mediump float; varying vec3 wp;" +
   " float line = 1.0 - smoothstep(0.0, 0.035, e);" +
   " float dist = length(wp.xz) / 150.0;" +
   " float fade = 1.0 - smoothstep(0.12, 0.95, dist);" +
-  " vec3 col = mix(vec3(0.40, 0.54, 0.76), vec3(0.56, 0.47, 0.72), clamp(dist * 1.4, 0.0, 1.0));" +
-  " float a = line * fade * 0.4;" + /* pastello visibile ma discreta */
+  " vec3 col = mix(vec3(0.42, 0.62, 0.66), vec3(0.66, 0.72, 0.45), clamp(dist * 1.4, 0.0, 1.0));" +
+  " float a = line * fade * 0.35;" + /* righe tenui coerenti col petrolio */
   " gl_FragColor = vec4(col, a); }";
 
 var VS_OBJ = "attribute vec3 p; attribute vec3 n; uniform mat4 uModel; uniform float uTime;" +
@@ -130,9 +137,11 @@ var FS_OBJ = "precision mediump float; varying vec3 wp; varying vec3 wn;" +
   " float soft = lam * 0.55 + (1.0 - abs(N.y)) * 0.25;" + /* luce avvolgente, no ombre dure */
   " vec3 V = normalize(uEye - wp); float ndv = max(dot(N,V),0.0);" +
   " float rim = pow(1.0 - ndv, 2.4);" +
-  " vec3 c = uColor * (0.45 + 0.55*soft);" +
-  " c += uColor * rim * 0.65 + vec3(0.08, 0.08, 0.13) * rim;" +
-  " float alpha = uAlpha * (0.55 + 0.45*rim);" +
+  /* v1.7: effetto lucido riflettente RIMOSSO (non convinceva) — sfera morbida e opaca.
+     Per riattivarlo: " c += vec3(1.0,0.98,0.88) * pow(max(dot(N,normalize(L+V)),0.0),40.0) * 1.25;" */
+  " vec3 c = uColor * (0.50 + 0.60*soft);" +
+  " c += uColor * rim * 0.55 + vec3(0.08, 0.08, 0.13) * rim;" +
+  " float alpha = uAlpha * (0.60 + 0.40*rim);" +
   " gl_FragColor = vec4(c, alpha); }";
 
 var VS_QUAD = "attribute vec3 p; attribute vec2 uv; varying vec2 vUv;" +
@@ -172,6 +181,21 @@ function m4Billboard(pos, V, hw, hh) {
     rx*hw, ry*hw, rz*hw, 0,
     ux*hh, uy*hh, uz*hh, 0,
     V[2], V[6], V[10], 0,
+    pos[0], pos[1], pos[2], 1]);
+}
+/* pannello fisso inclinato verso l'utente (v1.6): la sommità pende in avanti,
+   così chi lo guarda dal basso lo vede di fronte e non di taglio */
+function m4TiltedBillboard(pos, V, hw, hh, tilt) {
+  var px = V[2], pz = V[10];                 /* orizzontale pannello→utente */
+  var l = Math.hypot(px, pz) || 1; px /= l; pz /= l;
+  var rx = pz, rz = -px;                     /* destra dell'utente */
+  var ct = Math.cos(tilt), st = Math.sin(tilt);
+  var ux = st * px, uy = ct, uz = st * pz;   /* up inclinato verso l'utente */
+  var nx = -rz * uy, ny = rz * ux - rx * uz, nz = rx * uy;   /* normale = r × u' */
+  return new Float32Array([
+    rx*hw, 0, rz*hw, 0,
+    ux*hh, uy*hh, uz*hh, 0,
+    nx, ny, nz, 0,
     pos[0], pos[1], pos[2], 1]);
 }
 
@@ -224,8 +248,16 @@ var Lc = {
   quad: { mvp: gl.getUniformLocation(pQuad, "uMVP"), tex: gl.getUniformLocation(pQuad, "uTex"),
           p: gl.getAttribLocation(pQuad, "p"), uv: gl.getAttribLocation(pQuad, "uv") }
 };
+/* programma piatto (raghi/pallini controller) */
+var pFlat = prog("attribute vec3 p; uniform mat4 uMVP; void main(){ gl_Position = uMVP * vec4(p,1.0); }",
+  "precision mediump float; uniform vec4 uColor; void main(){ gl_FragColor = uColor; }");
+var LcFlat = { mvp: gl.getUniformLocation(pFlat, "uMVP"),
+  color: gl.getUniformLocation(pFlat, "uColor"), p: gl.getAttribLocation(pFlat, "p") };
+var bRay = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, bRay);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(6), gl.DYNAMIC_DRAW);
 
-/* texture testo (billboard: SOLO in VR) */
+/* texture testo (HUD in VR: pannello che segue il capo) */
 var tCanvas = document.createElement("canvas"); tCanvas.width = 1024; tCanvas.height = 512;
 var tCtx = tCanvas.getContext("2d");
 var textTex = gl.createTexture();
@@ -235,17 +267,36 @@ gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 var lastText = "";
-function drawTextTexture(main, sub) {
-  var key = main + "|" + sub;
+/* auto-fit: riduce il corpo finché il testo entra nei 1024px del canvas
+   (bugfix v1.4: "PREMI IL GRILLETTO" a 130px era largo ~1300px → tagliato) */
+function setFitFont(weight, family, text, base) {
+  var size = base;
+  tCtx.font = (weight ? weight + " " : "") + size + "px " + family;
+  while (text && tCtx.measureText(text).width > 940 && size > 32) {
+    size -= 6;
+    tCtx.font = (weight ? weight + " " : "") + size + "px " + family;
+  }
+}
+function drawTextTexture(main, sub, hint) {
+  var key = main + "|" + sub + "|" + (hint || "");
   if (key === lastText) return; lastText = key;
   tCtx.clearRect(0, 0, 1024, 512);
-  tCtx.textAlign = "center"; tCtx.fillStyle = "rgba(43,54,82,0.92)";
-  tCtx.font = "600 130px system-ui, sans-serif";
-  tCtx.fillText(main, 512, 220);
-  tCtx.font = "300 72px system-ui, sans-serif"; tCtx.fillStyle = "rgba(43,54,82,0.60)";
-  tCtx.fillText(sub, 512, 330);
+  tCtx.textAlign = "center";
+  setFitFont("", "Anton, system-ui, sans-serif", main, 150);   /* main in Anton */
+  tCtx.fillStyle = "rgba(242,245,236,0.95)";
+  tCtx.fillText(main, 512, 205);
+  setFitFont("300", "system-ui, sans-serif", sub, 64);
+  tCtx.fillStyle = "rgba(242,245,236,0.70)";
+  tCtx.fillText(sub, 512, 315);
+  setFitFont("600", "system-ui, sans-serif", hint, 44);        /* hint giallo brand */
+  tCtx.fillStyle = "rgba(255,215,0,0.88)";
+  tCtx.fillText(hint, 512, 425);
   gl.bindTexture(gl.TEXTURE_2D, textTex);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, tCanvas);
+}
+/* quando Anton finisce di caricarsi, forza il ridisegno del billboard col font giusto */
+if (document.fonts && document.fonts.load) {
+  document.fonts.load("150px Anton").then(function () { lastText = ""; }).catch(function () {});
 }
 
 /* audio */
@@ -284,15 +335,21 @@ function step(now) {
   else colMix = (ph.to > 1.2) ? 1 : 0;
   var color = mix3(EXHALE, INHALE, colMix);
   var remain = Math.ceil(ph.dur - t);
-  var subTxt = remain + (cycles > 0 ? "  ·  ciclo " + cycles : "");
+  var subTxt = remain + " · " + MODES[mode].label + (cycles > 0 ? " · ciclo " + cycles : "");
   big.textContent = ph.name; sub.textContent = subTxt;
-  drawTextTexture(ph.name, subTxt);
+  drawTextTexture(ph.name, subTxt, "");
   return color;
 }
 
 /* ============ rendering ============ */
-var SPHERE_POS = [0, 1.4, 0], BILL_POS = [0, 2.7, 0];
-var curColor = [0.87, 0.58, 0.22];
+var SPHERE_POS = [0, 1.4, 0];   /* centro sfera (riferimento) */
+/* pannello istruzioni/timer: FISSO sopra la sfera, inclinato verso l'utente.
+   Mai occluso: bordo inferiore ~3.06 m > apice sfera ~2.94 m (scala 1.5 + bob).
+   Aspect 2:1 = texture 1024x512 → testo senza stirature (v1.7) */
+var PANEL_POS = [0, 3.55, 0], PANEL_HW = 1.1, PANEL_HH = 0.55,
+    PANEL_TILT = 28 * Math.PI / 180;
+var xrControllers = [];   /* origine+direzione raggio per controller, riempiti in xrFrame */
+var curColor = [1.00, 0.84, 0.12];
 function renderView(P, V, eye, inXR) {
   var nowS = performance.now() * 0.001;
   /* cielo */
@@ -328,7 +385,7 @@ function renderView(P, V, eye, inXR) {
   gl.uniform3fv(Lc.obj.color, curColor);
   gl.uniform3fv(Lc.obj.eye, eye);
   gl.uniform3f(Lc.obj.light, 0.35, 0.75, 0.45);
-  gl.uniform1f(Lc.obj.alpha, 0.85);
+  gl.uniform1f(Lc.obj.alpha, 0.92);
   gl.uniform1f(Lc.obj.time, nowS);
   gl.bindBuffer(gl.ARRAY_BUFFER, bSphere.p);
   gl.enableVertexAttribArray(Lc.obj.p);
@@ -341,10 +398,12 @@ function renderView(P, V, eye, inXR) {
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
   gl.drawElements(gl.TRIANGLES, bSphere.n, gl.UNSIGNED_SHORT, 0);
   gl.disable(gl.BLEND);
-  /* billboard testo — SOLO in VR (in flat usa il DOM) */
+  /* pannello testo — SOLO in VR (in flat usa il DOM): fisso nel mondo, sopra la
+     sfera, inclinato 28° verso l'utente (v1.6: via l'HUD che seguiva il capo) */
   if (inXR) {
     gl.useProgram(pQuad);
-    gl.uniformMatrix4fv(Lc.quad.mvp, false, m4Mul(P, m4Mul(V, m4Billboard(BILL_POS, V, 1.15, 0.5))));
+    gl.uniformMatrix4fv(Lc.quad.mvp, false, m4Mul(P, m4Mul(V,
+      m4TiltedBillboard(PANEL_POS, V, PANEL_HW, PANEL_HH, PANEL_TILT))));
     gl.uniform1i(Lc.quad.tex, 0);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, textTex);
@@ -359,6 +418,28 @@ function renderView(P, V, eye, inXR) {
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     gl.drawElements(gl.TRIANGLES, bQuad.n, gl.UNSIGNED_SHORT, 0);
+    /* controller tracciati: raggio direzionale + pallino, giallo brand */
+    gl.useProgram(pFlat);
+    gl.enableVertexAttribArray(LcFlat.p);
+    for (var ci = 0; ci < xrControllers.length; ci++) {
+      var ct = xrControllers[ci], o = ct.origin, d = ct.dir;
+      /* raggio (1.6 m lungo la direzione di puntamento) */
+      gl.uniformMatrix4fv(LcFlat.mvp, false, m4Mul(P, V));
+      gl.bindBuffer(gl.ARRAY_BUFFER, bRay);
+      gl.vertexAttribPointer(LcFlat.p, 3, gl.FLOAT, false, 0, 0);
+      gl.bufferSubData(gl.ARRAY_BUFFER, 0, new Float32Array([
+        o[0], o[1], o[2],
+        o[0] + d[0] * 1.6, o[1] + d[1] * 1.6, o[2] + d[2] * 1.6 ]));
+      gl.uniform4f(LcFlat.color, 1.0, 0.84, 0.12, 0.45);
+      gl.drawArrays(gl.LINES, 0, 2);
+      /* pallino sull'impugnatura */
+      gl.uniformMatrix4fv(LcFlat.mvp, false, m4Mul(P, m4Mul(V, m4ModelS(o, 0.03))));
+      gl.uniform4f(LcFlat.color, 1.0, 0.84, 0.12, 0.95);
+      gl.bindBuffer(gl.ARRAY_BUFFER, bSphere.p);
+      gl.vertexAttribPointer(LcFlat.p, 3, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, bSphere.i);
+      gl.drawElements(gl.TRIANGLES, bSphere.n, gl.UNSIGNED_SHORT, 0);
+    }
     gl.disable(gl.BLEND);
   }
 }
@@ -370,14 +451,14 @@ function resize() {
   canvas.height = Math.floor(canvas.clientHeight * dpr);
 }
 window.addEventListener("resize", resize); resize();
-drawTextTexture("PRONTO…", "Premi START");
+drawTextTexture("PRONTO?", "Premi START", "");
 
 function flatFrame(now) {
   if (xrSession) return;
   requestAnimationFrame(flatFrame);
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   gl.viewport(0, 0, canvas.width, canvas.height);
-  gl.clearColor(0.64, 0.72, 0.85, 1);
+  gl.clearColor(0.33, 0.56, 0.63, 1);
   gl.enable(gl.DEPTH_TEST);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   if (running) curColor = step(now);
@@ -400,14 +481,30 @@ if (navigator.xr && navigator.xr.isSessionSupported) {
 function xrFrame(time, frame) {
   if (!xrSession) return;
   xrSession.requestAnimationFrame(xrFrame);
+  /* tracciamento controller: origine+direzione del raggio di ogni input
+     (v1.4: prima si leggeva gamepad.buttons[0] ma non si innescava sul Quest) */
+  xrControllers = [];
+  var sources = xrSession.inputSources;
+  for (var i = 0; i < sources.length; i++) {
+    var src = sources[i];
+    if (!src.targetRaySpace) continue;
+    var rp = frame.getPose(src.targetRaySpace, xrRefSpace);
+    if (!rp) continue;
+    var rm = rp.transform.matrix;
+    xrControllers.push({ origin: [rm[12], rm[13], rm[14]],
+                         dir: [-rm[8], -rm[9], -rm[10]] });
+  }
   var pose = frame.getViewerPose(xrRefSpace);
   if (!pose) return;
   var layer = xrSession.renderState.baseLayer;
   gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);
-  gl.clearColor(0.64, 0.72, 0.85, 1);
+  gl.clearColor(0.33, 0.56, 0.63, 1);
   gl.enable(gl.DEPTH_TEST);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   if (running) curColor = step(time);
+  else drawTextTexture("PREMI IL GRILLETTO",
+                       everRan ? "per riprendere" : "per iniziare",
+                       "STRETTA = CAMBIA RITMO · " + MODES[mode].label);
   for (var i = 0; i < pose.views.length; i++) {
     var v = pose.views[i];
     var vp = layer.getViewport(v);
@@ -419,19 +516,24 @@ function xrFrame(time, frame) {
 vrBtn.addEventListener("click", function () {
   navigator.xr.requestSession("immersive-vr", { optionalFeatures: ["local-floor"] }).then(function (s) {
     xrSession = s;
+    /* input in VR: eventi nativi WebXR (v1.4) — più affidabili del polling del gamepad.
+       selectstart = grilletto premuto, squeezestart = stretta dell'impugnatura */
+    s.addEventListener("selectstart", function () { toggleRun(); });
+    s.addEventListener("squeezestart", function () { switchMode(); });
     s.updateRenderState({ baseLayer: new XRWebGLLayer(s, gl) });
     s.requestReferenceSpace("local-floor").then(function (rs) {
       xrRefSpace = rs;
       /* posizionamento: un frame iniziale per leggere l'orientamento dell'utente,
-         poi il mondo viene spostato così che la sfera si trovi a ~2.2 m davanti a lui
-         (bugfix v1.2: prima l'utente spuntava dentro la sfera) */
+         poi il mondo viene spostato così che la sfera si trovi a ~3.2 m davanti a lui
+         (v1.6: più indietro, così sfera e pannello restano ben separati;
+         bugfix v1.2: prima l'utente spuntava dentro la sfera) */
       s.requestAnimationFrame(function (time, frame) {
         var pose = frame.getViewerPose(xrRefSpace);
         if (pose && pose.views.length && typeof XRRigidTransform !== "undefined") {
           var m = pose.views[0].transform.matrix;
           var fx = -m[8], fz = -m[10];              /* direzione di sguardo (piano orizzontale) */
           var len = Math.hypot(fx, fz) || 1; fx /= len; fz /= len;
-          var dist = 2.2;
+          var dist = 3.2;   /* v1.6: utente più indietro (era 2.2) */
           var T = new XRRigidTransform(
             { x: fx * dist, y: 0, z: fz * dist },   /* nuova origine: davanti all'utente */
             { x: 0, y: 0, z: 0, w: 1 });
@@ -446,18 +548,22 @@ vrBtn.addEventListener("click", function () {
 
 /* ============ UI ============ */
 var startBtn = document.getElementById("startBtn");
-startBtn.addEventListener("click", function () {
+var everRan = false;
+function toggleRun() {
   running = !running;
   startBtn.textContent = running ? "PAUSA" : "RIPRENDI";
-  if (running) { phaseIdx = 0; cycles = 0; phaseT0 = performance.now(); ping(392); }
+  if (running) { everRan = true; phaseIdx = 0; cycles = 0; phaseT0 = performance.now(); ping(392); }
   else { big.textContent = "PAUSA"; sub.textContent = "Riprendi quando vuoi"; }
-});
+}
+startBtn.addEventListener("click", toggleRun);
 var modeBtn = document.getElementById("modeBtn");
-modeBtn.addEventListener("click", function () {
+function switchMode() {
   mode = (mode === "box") ? "calma" : "box";
   modeBtn.textContent = MODES[mode].label;
   phaseIdx = 0; phaseT0 = performance.now();
-});
+  if (running) ping(392);
+}
+modeBtn.addEventListener("click", switchMode);
 var fsBtn = document.getElementById("fsBtn");
 fsBtn.addEventListener("click", function () {
   if (document.fullscreenElement) document.exitFullscreen();
