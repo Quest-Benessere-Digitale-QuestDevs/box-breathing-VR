@@ -55,7 +55,7 @@ Non è un'intuizione nostra, è una delle ipotesi più replicate della letteratu
 - **Un solo gesto per azione.** Grilletto per avviare/fermare, stretta per cambiare ritmo: niente menu, niente puntatori complessi. Ogni elemento interattivo dà feedback visivo e sonoro \[13\].
 - **Palette a bassa stimolazione.** Verde petrolio profondo e giallo caldo del marchio: colori coerenti con l'identità di Quest e con la logica degli ambienti rilassanti usati negli studi VR \[8\], senza pattern ad alto contrasto o movimento intenso, che le linee guida segnalano come fonti di disagio \[12\].
 - **Segnali sonori discreti ai cambi di fase.** Tre note distinte (ispirazione, espirazione, apnea) consentono di seguire l'esercizio senza fissare il testo — utile anche per chi ha difficoltà di lettura. Il ritmo è visivo *e* uditivo, in ridondanza.
-- **Zero telemetria.** Nessun cookie, nessun dato inviato, nessun salvataggio remoto: la privacy è una scelta di progettazione. Serve solo la connessione per scaricare il font Anton da Google Fonts.
+- **Zero telemetria.** Nessun cookie, nessun dato inviato, nessun salvataggio remoto: la privacy è una scelta di progettazione. Serve solo la connessione per scaricare il font Roboto da Google Fonts.
 
 ---
 
