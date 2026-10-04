@@ -6,7 +6,7 @@
 <title>Box Breathing VR — Quest Benessere Digitale</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
@@ -21,16 +21,16 @@
     color: #f2f5ec; text-transform: uppercase; line-height: 1.25;
     text-shadow: 0 2px 14px rgba(0, 45, 55, .55); }
   #phaseLabel .big { display: block; font-size: clamp(34px, 8vw, 84px);
-    font-family: "Anton", system-ui, sans-serif; font-weight: 400; letter-spacing: .14em; margin: 0; }
+    font-family: "Roboto Mono", system-ui, monospace; font-weight: 700; letter-spacing: .14em; margin: 0; }
   #phaseLabel .sub { display: block; font-size: clamp(16px, 3vw, 22px); opacity: .8;
     margin: .55em 0 0; letter-spacing: .22em;
-    font-family: "Anton", system-ui, sans-serif; font-weight: 400; }
+    font-family: "Roboto Mono", system-ui, monospace; font-weight: 500; }
   #spacer { flex: 1; }
   #controls { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
     pointer-events: auto; padding-bottom: max(14px, env(safe-area-inset-bottom)); }
   button { background: rgba(242,245,236,.92); color: #16414e; border: 0; border-radius: 999px;
     padding: 12px 22px; font-size: 17px; font-weight: 400; letter-spacing: .08em; cursor: pointer;
-    font-family: "Anton", system-ui, sans-serif;
+    font-family: "Roboto Mono", system-ui, monospace; font-weight: 500;
     transition: transform .15s ease; box-shadow: 0 4px 18px rgba(0,30,40,.35); }
   button:active { transform: scale(.96); }
   button.secondary { background: rgba(242,245,236,.16); color: #f2f5ec; }
@@ -282,7 +282,7 @@ function drawTextTexture(main, sub, hint) {
   if (key === lastText) return; lastText = key;
   tCtx.clearRect(0, 0, 1024, 512);
   tCtx.textAlign = "center";
-  setFitFont("", "Anton, system-ui, sans-serif", main, 150);   /* main in Anton */
+  setFitFont("700", "Roboto Mono, system-ui, monospace", main, 150);   /* main in Roboto Mono bold (700 = mass equivalente all'Anton black) */
   tCtx.fillStyle = "rgba(242,245,236,0.95)";
   tCtx.fillText(main, 512, 205);
   setFitFont("300", "system-ui, sans-serif", sub, 64);
@@ -294,9 +294,9 @@ function drawTextTexture(main, sub, hint) {
   gl.bindTexture(gl.TEXTURE_2D, textTex);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, tCanvas);
 }
-/* quando Anton finisce di caricarsi, forza il ridisegno del billboard col font giusto */
+/* quando Roboto Mono finisce di caricarsi, forza il ridisegno del billboard col font giusto */
 if (document.fonts && document.fonts.load) {
-  document.fonts.load("150px Anton").then(function () { lastText = ""; }).catch(function () {});
+  document.fonts.load('700 150px "Roboto Mono"').then(function () { lastText = ""; }).catch(function () {});
 }
 
 /* audio */
