@@ -41,7 +41,7 @@ L'idea di fondo: **un ambiente immersivo occupa la finestra percettiva e scherma
 
 Non è un'intuizione nostra, è una delle ipotesi più replicate della letteratura VR:
 
-- **L'attenzione è una risorsa limitata.** L'evidenza più drammatica viene dalla terapia del dolore: nei pazienti ustionati sottoposti a medicazioni, l'ambiente immersivo riduce significativamente il dolore percepito rispetto alla sola distrazione farmacologica, proprio perché consuma le risorse attentive che altrimenti elaborerebbero lo stimolo doloroso \[6\]. Lo stesso principio — meno banda percettiva disponibile per i pensieri distraenti — è alla base dell'uso VR per la regolazione emotiva.
+- **L'attenzione è una risorsa limitata.** L'evidenza più drammatica viene dalla terapia del dolore: nei pazienti ustionati sottoposti a medicazioni, l'ambiente immersivo riduce significativamente il dolore percepito rispetto alla sola distrazione farmacologica, proprio perché consuma le risorse attentive che altrimenti elaborerebbero lo stimolo doloroso \[6\]. Lo stesso principio meno banda percettiva disponibile per i pensieri distraenti è alla base dell'uso VR per la regolazione emotiva.
 - **Le revisioni sulla VR per lo stress convergono.** Una revisione sistematica su adulti sani trova che interventi di gestione dello stress in VR immersiva producono miglioramenti consistenti in stati d'ansia e umore \[7\]; una scoping review più recente osserva che gli ambienti virtuali calmi funzionano attraverso i meccanismi delle *attention restoration* e *stress recovery theory* — l'immersione in ambienti pacifici che "disancorano" parzialmente l'utente dai carichi della realtà \[8\].
 - **Un esercizio che chiede attenzione merita un ambiente che la protegge.** La respirazione lenta funziona se la si segue davvero; ogni distrazione visiva è un costo. Nel visore quel costo si azzera: il pacer è l'unico oggetto del campo visivo.
 
@@ -54,7 +54,7 @@ Non è un'intuizione nostra, è una delle ipotesi più replicate della letteratu
 - **Il pannello è fisso nel mondo** Testo che segue lo sguardo si paga in disagio e nausea: preferiamo che l'utente guardi la scena e ritrovi le informazioni dove stanno, come un cartellone. Le scelte di comfort seguono le raccomandazioni ufficiali per esperienze sicure e confortevoli in VR \[12\].
 - **Un solo gesto per azione.** Grilletto per avviare/fermare, stretta per cambiare ritmo: niente menu, niente puntatori complessi. Ogni elemento interattivo dà feedback visivo e sonoro \[13\].
 - **Palette a bassa stimolazione.** Verde petrolio profondo e giallo caldo del marchio: colori coerenti con l'identità di Quest e con la logica degli ambienti rilassanti usati negli studi VR \[8\], senza pattern ad alto contrasto o movimento intenso, che le linee guida segnalano come fonti di disagio \[12\].
-- **Segnali sonori discreti ai cambi di fase.** Tre note distinte (ispirazione, espirazione, apnea) consentono di seguire l'esercizio senza fissare il testo — utile anche per chi ha difficoltà di lettura. Il ritmo è visivo *e* uditivo, in ridondanza.
+- **Segnali sonori discreti ai cambi di fase.** Tre note distinte (ispirazione, espirazione, apnea) consentono di seguire l'esercizio senza fissare il testo, utile anche per chi ha difficoltà di lettura. Il ritmo è visivo *e* uditivo, in ridondanza.
 - **Zero telemetria** Nessun cookie, nessun dato inviato, nessun salvataggio remoto: la privacy è una scelta di progettazione. Serve solo la connessione per scaricare il font Roboto da Google Fonts.
 
 ---
